@@ -1,0 +1,28 @@
+{
+  "name": "quantum-finance-engine",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.6.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "database"
+  ],
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:web": "cd apps/web && npm run dev",
+    "dev:api": "cd apps/api && npm run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:generate": "cd database && npx prisma generate",
+    "db:migrate": "cd database && npx prisma migrate dev",
+    "db:deploy": "cd database && npx prisma migrate deploy",
+    "deploy:vercel": "pwsh ./scripts/deploy-vercel.ps1",
+    "bootstrap:creator": "node ./scripts/bootstrap-creator.cjs"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.0",
+    "typescript": "^5.6.3"
+  }
+}
