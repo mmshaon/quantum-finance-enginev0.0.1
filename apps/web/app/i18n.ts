@@ -1,0 +1,61 @@
+export type Lang = "en" | "bn" | "ar";
+
+export const translations: Record<Lang, Record<string, string>> = {
+  en: {
+    login: "Login",
+    register: "Register",
+    email: "Email",
+    password: "Password",
+    fullName: "Full Name",
+    address: "Address",
+    companyName: "Company Name",
+    phone: "Contact Number",
+    emergencyContact: "Emergency Contact Number",
+    idNumber: "ID Number",
+    submit: "Submit",
+    pendingApproval: "Your registration will be reviewed by admin.",
+    rememberMe: "Remember me",
+    forgotPassword: "Forgot password?",
+    announcement: "Announcements",
+    systemTitle: "Quantum Finance Engine",
+    createdBy: "Created by: Mohammad Maynul Hasan"
+  },
+  bn: {
+    login: "লগইন",
+    register: "রেজিস্টার",
+    email: "ইমেইল",
+    password: "পাসওয়ার্ড",
+    fullName: "পূর্ণ নাম",
+    address: "ঠিকানা",
+    companyName: "কোম্পানির নাম",
+    phone: "যোগাযোগ নম্বর",
+    emergencyContact: "জরুরি যোগাযোগ নম্বর",
+    idNumber: "আইডি নম্বর",
+    submit: "সাবমিট",
+    pendingApproval: "আপনার রেজিস্ট্রেশন অ্যাডমিন অনুমোদন করবে।",
+    rememberMe: "মনে রাখুন",
+    forgotPassword: "পাসওয়ার্ড ভুলে গেছেন?",
+    announcement: "ঘোষণা",
+    systemTitle: "কোয়ান্টাম ফাইন্যান্স ইঞ্জিন",
+    createdBy: "তৈরি করেছেন: মোহাম্মদ মাইনুল হাসান"
+  },
+  ar: {
+    login: "تسجيل الدخول",
+    register: "تسجيل",
+    email: "البريد الإلكتروني",
+    password: "كلمة المرور",
+    fullName: "الاسم الكامل",
+    address: "العنوان",
+    companyName: "اسم الشركة",
+    phone: "رقم الاتصال",
+    emergencyContact: "رقم الاتصال للطوارئ",
+    idNumber: "رقم الهوية",
+    submit: "إرسال",
+    pendingApproval: "سيتم مراجعة تسجيلك من قبل الإدارة.",
+    rememberMe: "تذكرني",
+    forgotPassword: "نسيت كلمة المرور؟",
+    announcement: "الإعلانات",
+    systemTitle: "محرك التمويل الكمي",
+    createdBy: "تم الإنشاء بواسطة: محمد مينول حسن"
+  }
+};
