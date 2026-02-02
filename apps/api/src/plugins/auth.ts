@@ -1,5 +1,6 @@
-import fp from "fastify-plugin";
+﻿import fp from "fastify-plugin";
 import jwt from "@fastify/jwt";
+import { FastifyReply, FastifyRequest } from "fastify";
 
 export default fp(async (app) => {
   app.register(jwt, {
@@ -38,11 +39,43 @@ export default fp(async (app) => {
       }
     }
   );
+
+  app.decorate("checkRole", (roles: string[]) => {
+    return async (request: any, reply: any) => {
+      try {
+        await request.jwtVerify();
+        const user = await app.prisma.user.findUnique({
+          where: { id: request.user.userId },
+          include: {
+            roles: {
+              include: {
+                role: true
+              }
+            }
+          }
+        });
+
+        if (!user) {
+          return reply.code(401).send({ error: "User not found" });
+        }
+
+        const userRoles = user.roles.map(ur => ur.role.name);
+        const hasRole = roles.some(role => userRoles.includes(role));
+
+        if (!hasRole && !user.isCreator) {
+          return reply.code(403).send({ error: "Forbidden" });
+        }
+      } catch (err) {
+        return reply.code(401).send({ error: "Unauthorized" });
+      }
+    };
+  });
 });
 
 declare module "fastify" {
   interface FastifyInstance {
-    authenticate: any;
+    authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    checkRole: (roles: string[]) => (request: any, reply: any) => Promise<void>;
   }
   interface FastifyRequest {
     currentUser?: any;

@@ -1,22 +1,24 @@
-import "../styles/globals.css";
-import Header from "./components/Header";
-import Sidebar from "./components/Sidebar";
+import './globals.css'
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 
-export const metadata = {
-  title: "Quantum Finance Engine",
-  description: "Alpha Ultimate Ltd - Quantum Finance Engine"
-};
+const inter = Inter({ subsets: ['latin'] })
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export const metadata: Metadata = {
+  title: 'Quantum Finance Engine',
+  description: 'Multi-Platform Financial Management & Operations Engine by Alpha Ultimate Ltd',
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="en">
-      <body>
-        <Header />
-        <div className="flex">
-          <Sidebar />
-          <main className="flex-1 p-6">{children}</main>
-        </div>
+      <body className={inter.className}>
+        {children}
       </body>
     </html>
-  );
+  )
 }

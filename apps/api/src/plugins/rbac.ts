@@ -1,4 +1,4 @@
-import fp from "fastify-plugin";
+﻿import fp from "fastify-plugin";
 
 export default fp(async (app) => {
   app.decorate(
@@ -9,8 +9,8 @@ export default fp(async (app) => {
         if (user.isCreator) return;
 
         const perms = new Set<string>();
-        for (const ur of user.roles ?? []) {
-          for (const rp of ur.role.permissions ?? []) {
+        for (const ur of user.roles) {
+          for (const rp of ur.role.permissions) {
             const p = rp.permission;
             perms.add(`${p.module}:${p.action}`);
           }

@@ -1,8 +1,10 @@
 {
   "name": "quantum-finance-engine",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "packageManager": "npm@11.6.2",
+  "description": "Next-generation financial management & operations engine",
+  "author": "Mohammad Maynul Hasan <creator@alphaultimate.com>",
+  "license": "PROPRIETARY",
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -10,19 +12,32 @@
   ],
   "scripts": {
     "dev": "turbo run dev --parallel",
-    "dev:web": "cd apps/web && npm run dev",
-    "dev:api": "cd apps/api && npm run dev",
     "build": "turbo run build",
+    "start": "turbo run start",
     "lint": "turbo run lint",
-    "test": "turbo run test",
-    "db:generate": "cd database && npx prisma generate",
-    "db:migrate": "cd database && npx prisma migrate dev",
-    "db:deploy": "cd database && npx prisma migrate deploy",
-    "deploy:vercel": "pwsh ./scripts/deploy-vercel.ps1",
-    "bootstrap:creator": "node ./scripts/bootstrap-creator.cjs"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "setup:db": "node scripts/setup-database.js",
+    "deploy": "node scripts/deploy-vercel.js",
+    "deploy:web": "cd apps/web && vercel --prod",
+    "deploy:api": "cd apps/api && vercel --prod",
+    "db:generate": "npm run generate --workspace=database",
+    "db:push": "npm run push --workspace=database",
+    "db:migrate": "npm run migrate --workspace=database",
+    "db:seed": "npm run seed --workspace=database",
+    "db:studio": "npm run studio --workspace=database"
   },
   "devDependencies": {
-    "turbo": "^2.1.0",
-    "typescript": "^5.6.3"
+    "turbo": "^1.11.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "pdfkit": "^0.17.2",
+    "sharp": "^0.34.5",
+    "zod": "^4.3.6"
   }
 }

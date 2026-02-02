@@ -1,4 +1,4 @@
-import fp from "fastify-plugin";
+﻿import fp from "fastify-plugin";
 
 export default fp(async (app) => {
   app.addHook("onResponse", async (request: any, reply) => {
@@ -11,8 +11,7 @@ export default fp(async (app) => {
           userId,
           companyId,
           actionType: request.method,
-          module:
-            (request.routerPath || request.url || "").split("/")[1] ?? "unknown",
+          module: (request.routerPath || request.url || "").split("/")[1] ?? "unknown",
           metadata: {
             statusCode: reply.statusCode
           }

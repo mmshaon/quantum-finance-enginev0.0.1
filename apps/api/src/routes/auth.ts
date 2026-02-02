@@ -1,123 +1,181 @@
-import { FastifyInstance } from "fastify";
-import bcrypt from "bcryptjs";
+import { FastifyPluginAsync } from 'fastify';
+import bcrypt from 'bcryptjs';
 
-interface RegisterBody {
-  email: string;
-  password: string;
-  fullName: string;
-  address?: string;
-  companyName?: string;
-  profileImage?: string;
-  idImage?: string;
-  idNumber?: string;
-  phone?: string;
-  emergencyContact?: string;
-}
+const authRoutes: FastifyPluginAsync = async (fastify) => {
+  // Register
+  fastify.post('/register', async (request, reply) => {
+    const { email, password, fullName, address, phone, companyName, idNumber, emergencyContact } = request.body as any;
 
-interface LoginBody {
-  email: string;
-  password: string;
-}
-
-export async function authRoutes(app: FastifyInstance) {
-  // Registration: creates a pending user
-  app.post("/auth/register", async (req, reply) => {
-    const body = req.body as RegisterBody;
-
-    if (!body.email || !body.password || !body.fullName) {
-      return reply.status(400).send({ error: "Missing required fields" });
+    // Validate
+    if (!email || !password || !fullName) {
+      return reply.status(400).send({ error: 'Email, password, and full name are required' });
     }
 
-    const existing = await app.prisma.user.findUnique({
-      where: { email: body.email }
-    });
+    // Check if user exists
+    const existing = await fastify.prisma.user.findUnique({ where: { email } });
     if (existing) {
-      return reply.status(400).send({ error: "Email already registered" });
+      return reply.status(409).send({ error: 'Email already registered' });
     }
 
-    const passwordHash = await bcrypt.hash(body.password, 12);
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    const user = await app.prisma.user.create({
+    // Create user (pending approval)
+    const user = await fastify.prisma.user.create({
       data: {
-        email: body.email,
+        email,
         passwordHash,
-        fullName: body.fullName,
-        address: body.address,
-        profileImage: body.profileImage,
-        idImage: body.idImage,
-        idNumber: body.idNumber,
-        phone: body.phone,
-        emergencyContact: body.emergencyContact,
-        isApproved: false,
-        isCreator: false
+        fullName,
+        address,
+        phone,
+        idNumber,
+        emergencyContact,
+        isApproved: false
       }
     });
 
-    await app.prisma.auditLog.create({
+    // Log audit
+    await fastify.prisma.auditLog.create({
       data: {
         userId: user.id,
-        actionType: "REGISTER",
-        module: "AUTH",
-        entityType: "User",
-        entityId: user.id,
-        metadata: {
-          email: user.email
-        }
-      }
-    });
-
-    return reply.status(201).send({
-      success: true,
-      message: "Registration submitted for approval",
-      userId: user.id
-    });
-  });
-
-  // Login: only approved users
-  app.post("/auth/login", async (req, reply) => {
-    const body = req.body as LoginBody;
-
-    if (!body.email || !body.password) {
-      return reply.status(400).send({ error: "Missing credentials" });
-    }
-
-    const user = await app.prisma.user.findUnique({
-      where: { email: body.email }
-    });
-
-    if (!user) {
-      return reply.status(400).send({ error: "Invalid credentials" });
-    }
-
-    if (!user.isApproved) {
-      return reply.status(403).send({ error: "Account pending approval" });
-    }
-
-    const valid = await bcrypt.compare(body.password, user.passwordHash);
-    if (!valid) {
-      return reply.status(400).send({ error: "Invalid credentials" });
-    }
-
-    const token = app.jwt.sign({
-      userId: user.id,
-      companyId: user.companyId,
-      isCreator: user.isCreator
-    });
-
-    await app.prisma.auditLog.create({
-      data: {
-        userId: user.id,
-        companyId: user.companyId || undefined,
-        actionType: "LOGIN",
-        module: "AUTH",
-        entityType: "User",
+        actionType: 'REGISTER',
+        module: 'AUTH',
+        entityType: 'User',
         entityId: user.id
       }
     });
 
-    return reply.send({
-      success: true,
-      token
-    });
+    return {
+      message: 'Registration successful. Awaiting admin approval.',
+      userId: user.id
+    };
   });
-}
+
+  // Login
+  fastify.post('/login', async (request, reply) => {
+    const { email, password } = request.body as any;
+
+    if (!email || !password) {
+      return reply.status(400).send({ error: 'Email and password are required' });
+    }
+
+    // Find user
+    const user = await fastify.prisma.user.findUnique({
+      where: { email },
+      include: {
+        company: true,
+        roles: {
+          include: {
+            role: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      return reply.status(401).send({ error: 'Invalid credentials' });
+    }
+
+    if (!user.isApproved) {
+      return reply.status(403).send({ error: 'Account pending approval' });
+    }
+
+    // Verify password
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      return reply.status(401).send({ error: 'Invalid credentials' });
+    }
+
+    // Update last login
+    await fastify.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() }
+    });
+
+    // Log audit
+    await fastify.prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        companyId: user.companyId,
+        actionType: 'LOGIN',
+        module: 'AUTH'
+      }
+    });
+
+    // Generate token
+    const token = fastify.jwt.sign({
+      userId: user.id,
+      email: user.email,
+      companyId: user.companyId,
+      isCreator: user.isCreator
+    }, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+    });
+
+    // Clean user object
+    const { passwordHash, ...userWithoutPassword } = user;
+
+    return {
+      user: userWithoutPassword,
+      token
+    };
+  });
+
+  // Get current user
+  fastify.get('/me', { preHandler: [fastify.authenticate] }, async (request) => {
+    const { userId } = (request as any).user;
+
+    const user = await fastify.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        company: true,
+        roles: {
+          include: {
+            role: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const { passwordHash, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  });
+
+  // Logout (for audit trail)
+  fastify.post('/logout', { preHandler: [fastify.authenticate] }, async (request) => {
+    const { userId, companyId } = (request as any).user;
+
+    await fastify.prisma.auditLog.create({
+      data: {
+        userId,
+        companyId,
+        actionType: 'LOGOUT',
+        module: 'AUTH'
+      }
+    });
+
+    return { message: 'Logged out successfully' };
+  });
+};
+
+export default authRoutes;

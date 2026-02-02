@@ -7,15 +7,886 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//////////////////////
-// ENUM DEFINITIONS //
-//////////////////////
+model Account {
+  id                 String             @id
+  companyId          String
+  code               String
+  name               String
+  type               AccountType
+  isActive           Boolean            @default(true)
+  isRetainedEarnings Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime
+  Company            Company            @relation(fields: [companyId], references: [id])
+  JournalEntryLine   JournalEntryLine[]
 
-enum ExpenseStatus {
-  PENDING
-  REVIEW
-  APPROVED
-  REJECTED
+  @@unique([companyId, code])
+}
+
+model Asset {
+  id              String         @id
+  companyId       String
+  categoryId      String?
+  name            String
+  description     String?
+  value           Decimal        @db.Decimal(20, 4)
+  isOperatingCash Boolean        @default(false)
+  acquiredAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime
+  deletedAt       DateTime?
+  AssetCategory   AssetCategory? @relation(fields: [categoryId], references: [id])
+  Company         Company        @relation(fields: [companyId], references: [id])
+}
+
+model AssetCategory {
+  id          String   @id
+  companyId   String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  Asset       Asset[]
+  Company     Company  @relation(fields: [companyId], references: [id])
+}
+
+model AuditLog {
+  id         String   @id
+  userId     String?
+  companyId  String?
+  actionType String
+  module     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  Company    Company? @relation(fields: [companyId], references: [id])
+  User       User?    @relation(fields: [userId], references: [id])
+}
+
+model BackupJob {
+  id            String    @id
+  triggeredById String?
+  status        String
+  location      String?
+  createdAt     DateTime  @default(now())
+  completedAt   DateTime?
+  User          User?     @relation(fields: [triggeredById], references: [id])
+}
+
+model Company {
+  id                  String                @id
+  name                String
+  address             String?
+  logoUrl             String?
+  phone               String?
+  email               String?
+  website             String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  deletedAt           DateTime?
+  Account             Account[]
+  Asset               Asset[]
+  AssetCategory       AssetCategory[]
+  AuditLog            AuditLog[]
+  CompanyModule       CompanyModule[]
+  CompanySettings     CompanySettings?
+  ContactMessage      ContactMessage[]
+  Expense             Expense[]
+  ExpenseCategory     ExpenseCategory[]
+  FileUpload          FileUpload[]
+  FormSubmission      FormSubmission[]
+  GoodsReceivedNote   GoodsReceivedNote[]
+  IncomeBill          IncomeBill[]
+  Investment          Investment[]
+  JournalEntry        JournalEntry[]
+  Liability           Liability[]
+  LiabilityType       LiabilityType[]
+  Notification        Notification[]
+  PayrollRun          PayrollRun[]
+  Project             Project[]
+  ProjectInvoice      ProjectInvoice[]
+  ProjectPayment      ProjectPayment[]
+  PurchaseOrder       PurchaseOrder[]
+  Staff               Staff[]
+  StaffAccountLedger  StaffAccountLedger[]
+  StaffAttendance     StaffAttendance[]
+  StaffEquipmentIssue StaffEquipmentIssue[]
+  StaffSalarySheet    StaffSalarySheet[]
+  Task                Task[]
+  User                User[]
+  Vendor              Vendor[]
+  VendorInvoice       VendorInvoice[]
+  VendorPayment       VendorPayment[]
+}
+
+model CompanyModule {
+  id               String           @id
+  companyId        String
+  moduleId         String
+  isEnabled        Boolean          @default(true)
+  isLocked         Boolean          @default(false)
+  Company          Company          @relation(fields: [companyId], references: [id])
+  ModuleDefinition ModuleDefinition @relation(fields: [moduleId], references: [id])
+
+  @@unique([companyId, moduleId])
+}
+
+model CompanySettings {
+  id              String       @id
+  companyId       String       @unique
+  themeId         String?
+  language        LanguageCode @default(en)
+  currency        CurrencyCode @default(SAR)
+  darkModeDefault Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime
+  Company         Company      @relation(fields: [companyId], references: [id])
+  Theme           Theme?       @relation(fields: [themeId], references: [id])
+}
+
+model ContactMessage {
+  id        String   @id
+  companyId String?
+  name      String
+  email     String
+  subject   String
+  message   String
+  createdAt DateTime @default(now())
+  Company   Company? @relation(fields: [companyId], references: [id])
+}
+
+model Expense {
+  id                   String                 @id
+  companyId            String
+  submitterId          String
+  status               ExpenseStatus          @default(PENDING)
+  totalAmount          Decimal                @db.Decimal(20, 4)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime
+  deletedAt            DateTime?
+  Company              Company                @relation(fields: [companyId], references: [id])
+  User                 User                   @relation(fields: [submitterId], references: [id])
+  ExpenseItem          ExpenseItem[]
+  ExpenseStatusHistory ExpenseStatusHistory[]
+  ProjectExpenseLink   ProjectExpenseLink[]
+}
+
+model ExpenseCategory {
+  id          String        @id
+  companyId   String
+  name        String
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  Company     Company       @relation(fields: [companyId], references: [id])
+  ExpenseItem ExpenseItem[]
+}
+
+model ExpenseItem {
+  id              String           @id
+  expenseId       String
+  categoryId      String?
+  description     String
+  amount          Decimal          @db.Decimal(20, 4)
+  receiptUrl      String?
+  createdAt       DateTime         @default(now())
+  ExpenseCategory ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  Expense         Expense          @relation(fields: [expenseId], references: [id])
+}
+
+model ExpenseStatusHistory {
+  id          String        @id
+  expenseId   String
+  status      ExpenseStatus
+  comment     String?
+  changedById String?
+  createdAt   DateTime      @default(now())
+  User        User?         @relation(fields: [changedById], references: [id])
+  Expense     Expense       @relation(fields: [expenseId], references: [id])
+}
+
+model FileUpload {
+  id           String   @id
+  companyId    String
+  originalName String
+  fileName     String
+  mimeType     String
+  size         Int
+  path         String
+  uploadedById String?
+  createdAt    DateTime @default(now())
+  Company      Company  @relation(fields: [companyId], references: [id])
+  User         User?    @relation(fields: [uploadedById], references: [id])
+}
+
+model FormDefinition {
+  id                  String              @id
+  submoduleId         String
+  name                String
+  description         String?
+  schemaJson          Json
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime
+  SubmoduleDefinition SubmoduleDefinition @relation(fields: [submoduleId], references: [id])
+  FormSubmission      FormSubmission[]
+}
+
+model FormSubmission {
+  id             String         @id
+  formId         String
+  companyId      String
+  userId         String
+  data           Json
+  status         String         @default("SUBMITTED")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime
+  Company        Company        @relation(fields: [companyId], references: [id])
+  FormDefinition FormDefinition @relation(fields: [formId], references: [id])
+  User           User           @relation(fields: [userId], references: [id])
+}
+
+model FxRate {
+  id        String   @id
+  baseCode  String
+  quoteCode String
+  rate      Decimal  @db.Decimal(20, 8)
+  date      DateTime
+  createdAt DateTime @default(now())
+}
+
+model GoodsReceivedNote {
+  id                    String                  @id
+  companyId             String
+  purchaseOrderId       String
+  grnNumber             String
+  receivedDate          DateTime
+  notes                 String?
+  createdAt             DateTime                @default(now())
+  Company               Company                 @relation(fields: [companyId], references: [id])
+  PurchaseOrder         PurchaseOrder           @relation(fields: [purchaseOrderId], references: [id])
+  GoodsReceivedNoteItem GoodsReceivedNoteItem[]
+}
+
+model GoodsReceivedNoteItem {
+  id                String             @id
+  grnId             String
+  poItemId          String?
+  description       String
+  quantity          Int
+  GoodsReceivedNote GoodsReceivedNote  @relation(fields: [grnId], references: [id])
+  PurchaseOrderItem PurchaseOrderItem? @relation(fields: [poItemId], references: [id])
+}
+
+model IncomeBill {
+  id             String           @id
+  companyId      String
+  billNumber     String           @unique
+  clientName     String
+  clientAddress  String?
+  clientContact  String?
+  status         BillStatus       @default(DRAFT)
+  vatEnabled     Boolean          @default(false)
+  vatRate        Decimal?         @db.Decimal(20, 4)
+  discount       Decimal?         @db.Decimal(20, 4)
+  subtotal       Decimal          @db.Decimal(20, 4)
+  totalAmount    Decimal          @db.Decimal(20, 4)
+  amountInWords  String?
+  remarks        String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  deletedAt      DateTime?
+  Company        Company          @relation(fields: [companyId], references: [id])
+  IncomeBillItem IncomeBillItem[]
+  IncomeDue      IncomeDue[]
+  IncomePayment  IncomePayment[]
+}
+
+model IncomeBillItem {
+  id           String     @id
+  billId       String
+  serialNumber Int
+  description  String
+  quantity     Int
+  rate         Decimal    @db.Decimal(20, 4)
+  amount       Decimal    @db.Decimal(20, 4)
+  remarks      String?
+  IncomeBill   IncomeBill @relation(fields: [billId], references: [id])
+}
+
+model IncomeDue {
+  id         String     @id
+  billId     String
+  dueAmount  Decimal    @db.Decimal(20, 4)
+  reason     String?
+  createdAt  DateTime   @default(now())
+  IncomeBill IncomeBill @relation(fields: [billId], references: [id])
+}
+
+model IncomePayment {
+  id          String     @id
+  billId      String
+  amount      Decimal    @db.Decimal(20, 4)
+  paymentDate DateTime   @default(now())
+  method      String?
+  reference   String?
+  IncomeBill  IncomeBill @relation(fields: [billId], references: [id])
+}
+
+model Investment {
+  id           String             @id
+  companyId    String
+  category     InvestmentCategory
+  amount       Decimal            @db.Decimal(20, 4)
+  description  String?
+  investorName String?
+  projectId    String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime
+  Company      Company            @relation(fields: [companyId], references: [id])
+  Project      Project?           @relation(fields: [projectId], references: [id])
+}
+
+model JournalEntry {
+  id               String             @id
+  companyId        String
+  date             DateTime
+  reference        String?
+  description      String?
+  createdById      String?
+  createdAt        DateTime           @default(now())
+  Company          Company            @relation(fields: [companyId], references: [id])
+  User             User?              @relation(fields: [createdById], references: [id])
+  JournalEntryLine JournalEntryLine[]
+}
+
+model JournalEntryLine {
+  id            String       @id
+  entryId       String
+  accountId     String
+  debit         Decimal      @db.Decimal(20, 4)
+  credit        Decimal      @db.Decimal(20, 4)
+  memo          String?
+  foreignAmount Decimal?     @db.Decimal(20, 4)
+  foreignCode   String?
+  fxRate        Decimal?     @db.Decimal(20, 8)
+  Account       Account      @relation(fields: [accountId], references: [id])
+  JournalEntry  JournalEntry @relation(fields: [entryId], references: [id])
+}
+
+model Liability {
+  id            String         @id
+  companyId     String
+  typeId        String?
+  lenderName    String?
+  description   String?
+  amount        Decimal        @db.Decimal(20, 4)
+  dueDate       DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime
+  deletedAt     DateTime?
+  Company       Company        @relation(fields: [companyId], references: [id])
+  LiabilityType LiabilityType? @relation(fields: [typeId], references: [id])
+}
+
+model LiabilityType {
+  id          String      @id
+  companyId   String
+  name        String
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime
+  Liability   Liability[]
+  Company     Company     @relation(fields: [companyId], references: [id])
+}
+
+model ModuleDefinition {
+  id                  String                @id
+  key                 ModuleKey             @unique
+  name                String
+  description         String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  CompanyModule       CompanyModule[]
+  SubmoduleDefinition SubmoduleDefinition[]
+}
+
+model Notification {
+  id        String           @id
+  companyId String?
+  userId    String?
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  Company   Company?         @relation(fields: [companyId], references: [id])
+  User      User?            @relation(fields: [userId], references: [id])
+}
+
+model PayrollLine {
+  id         String     @id
+  runId      String
+  staffId    String
+  baseSalary Decimal    @db.Decimal(20, 4)
+  allowances Decimal    @db.Decimal(20, 4)
+  deductions Decimal    @db.Decimal(20, 4)
+  advances   Decimal    @db.Decimal(20, 4)
+  netPay     Decimal    @db.Decimal(20, 4)
+  PayrollRun PayrollRun @relation(fields: [runId], references: [id])
+  Staff      Staff      @relation(fields: [staffId], references: [id])
+}
+
+model PayrollRun {
+  id          String        @id
+  companyId   String
+  month       Int
+  year        Int
+  totalNetPay Decimal       @db.Decimal(20, 4)
+  createdAt   DateTime      @default(now())
+  PayrollLine PayrollLine[]
+  Company     Company       @relation(fields: [companyId], references: [id])
+}
+
+model Permission {
+  id             String           @id
+  module         ModuleKey
+  action         String
+  description    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  RolePermission RolePermission[]
+}
+
+model Project {
+  id                 String               @id
+  companyId          String
+  projectNumber      String
+  name               String
+  ownerName          String?
+  value              Decimal?             @db.Decimal(20, 4)
+  workType           String?
+  reference          String?
+  contactInfo        String?
+  status             ProjectStatus        @default(PLANNED)
+  startDate          DateTime?
+  endDate            DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  deletedAt          DateTime?
+  Investment         Investment[]
+  Company            Company              @relation(fields: [companyId], references: [id])
+  ProjectBudget      ProjectBudget[]
+  ProjectExpenseLink ProjectExpenseLink[]
+  ProjectInvoice     ProjectInvoice[]
+  ProjectPayment     ProjectPayment[]
+  ProjectProgressLog ProjectProgressLog[]
+  ProjectWorker      ProjectWorker[]
+  PurchaseOrder      PurchaseOrder[]
+  StaffAttendance    StaffAttendance[]
+}
+
+model ProjectBudget {
+  id        String   @id
+  projectId String
+  category  String
+  amount    Decimal  @db.Decimal(20, 4)
+  createdAt DateTime @default(now())
+  Project   Project  @relation(fields: [projectId], references: [id])
+}
+
+model ProjectExpenseLink {
+  id        String  @id
+  projectId String
+  expenseId String
+  Expense   Expense @relation(fields: [expenseId], references: [id])
+  Project   Project @relation(fields: [projectId], references: [id])
+
+  @@unique([projectId, expenseId])
+}
+
+model ProjectInvoice {
+  id                 String               @id
+  companyId          String
+  projectId          String
+  invoiceNo          String
+  issueDate          DateTime
+  dueDate            DateTime?
+  notes              String?
+  totalAmount        Decimal              @db.Decimal(20, 4)
+  currencyCode       String?
+  fxRate             Decimal?             @db.Decimal(20, 8)
+  foreignAmount      Decimal?             @db.Decimal(20, 4)
+  status             InvoiceStatus        @default(SENT)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  Company            Company              @relation(fields: [companyId], references: [id])
+  Project            Project              @relation(fields: [projectId], references: [id])
+  ProjectInvoiceItem ProjectInvoiceItem[]
+  ProjectPayment     ProjectPayment[]
+}
+
+model ProjectInvoiceItem {
+  id             String         @id
+  invoiceId      String
+  description    String
+  quantity       Int
+  unitPrice      Decimal        @db.Decimal(20, 4)
+  lineTotal      Decimal        @db.Decimal(20, 4)
+  ProjectInvoice ProjectInvoice @relation(fields: [invoiceId], references: [id])
+}
+
+model ProjectPayment {
+  id             String         @id
+  companyId      String
+  projectId      String
+  invoiceId      String
+  amount         Decimal        @db.Decimal(20, 4)
+  paidDate       DateTime
+  method         String?
+  reference      String?
+  currencyCode   String?
+  fxRate         Decimal?       @db.Decimal(20, 8)
+  foreignAmount  Decimal?       @db.Decimal(20, 4)
+  Company        Company        @relation(fields: [companyId], references: [id])
+  ProjectInvoice ProjectInvoice @relation(fields: [invoiceId], references: [id])
+  Project        Project        @relation(fields: [projectId], references: [id])
+}
+
+model ProjectProgressLog {
+  id              String   @id
+  projectId       String
+  progressPercent Int
+  notes           String?
+  createdAt       DateTime @default(now())
+  Project         Project  @relation(fields: [projectId], references: [id])
+}
+
+model ProjectWorker {
+  id        String   @id
+  projectId String
+  staffId   String
+  role      String?
+  createdAt DateTime @default(now())
+  Project   Project  @relation(fields: [projectId], references: [id])
+  Staff     Staff    @relation(fields: [staffId], references: [id])
+
+  @@unique([projectId, staffId])
+}
+
+model PurchaseOrder {
+  id                String              @id
+  companyId         String
+  vendorId          String
+  projectId         String?
+  poNumber          String
+  issueDate         DateTime
+  notes             String?
+  status            PurchaseOrderStatus @default(SENT)
+  createdAt         DateTime            @default(now())
+  GoodsReceivedNote GoodsReceivedNote[]
+  Company           Company             @relation(fields: [companyId], references: [id])
+  Project           Project?            @relation(fields: [projectId], references: [id])
+  Vendor            Vendor              @relation(fields: [vendorId], references: [id])
+  PurchaseOrderItem PurchaseOrderItem[]
+  VendorInvoice     VendorInvoice[]
+}
+
+model PurchaseOrderItem {
+  id                    String                  @id
+  purchaseOrderId       String
+  description           String
+  quantity              Int
+  unitPrice             Decimal                 @db.Decimal(20, 4)
+  lineTotal             Decimal                 @db.Decimal(20, 4)
+  GoodsReceivedNoteItem GoodsReceivedNoteItem[]
+  PurchaseOrder         PurchaseOrder           @relation(fields: [purchaseOrderId], references: [id])
+}
+
+model Role {
+  id             String           @id
+  name           String
+  description    String?
+  isSystem       Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  RolePermission RolePermission[]
+  UserRole       UserRole[]
+}
+
+model RolePermission {
+  id           String     @id
+  roleId       String
+  permissionId String
+  Permission   Permission @relation(fields: [permissionId], references: [id])
+  Role         Role       @relation(fields: [roleId], references: [id])
+
+  @@unique([roleId, permissionId])
+}
+
+model Staff {
+  id                  String                @id
+  companyId           String
+  userId              String?               @unique
+  fullName            String
+  dailyRate           Decimal?              @db.Decimal(20, 4)
+  monthlySalary       Decimal?              @db.Decimal(20, 4)
+  iban                String?
+  position            String?
+  department          String?
+  phone               String?
+  address             String?
+  idNumber            String?
+  profileImage        String?
+  idImage             String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  deletedAt           DateTime?
+  PayrollLine         PayrollLine[]
+  ProjectWorker       ProjectWorker[]
+  Company             Company               @relation(fields: [companyId], references: [id])
+  User                User?                 @relation(fields: [userId], references: [id])
+  StaffAccountLedger  StaffAccountLedger[]
+  StaffAttendance     StaffAttendance[]
+  StaffEquipmentIssue StaffEquipmentIssue[]
+  StaffSalarySheet    StaffSalarySheet[]
+}
+
+model StaffAccountLedger {
+  id        String   @id
+  staffId   String
+  companyId String
+  type      String
+  amount    Decimal  @db.Decimal(20, 4)
+  reference String?
+  createdAt DateTime @default(now())
+  Company   Company  @relation(fields: [companyId], references: [id])
+  Staff     Staff    @relation(fields: [staffId], references: [id])
+}
+
+model StaffAttendance {
+  id           String           @id
+  staffId      String
+  companyId    String
+  projectId    String?
+  date         DateTime
+  status       AttendanceStatus
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+  notes        String?
+  createdAt    DateTime         @default(now())
+  Company      Company          @relation(fields: [companyId], references: [id])
+  Project      Project?         @relation(fields: [projectId], references: [id])
+  Staff        Staff            @relation(fields: [staffId], references: [id])
+
+  @@unique([staffId, date])
+}
+
+model StaffEquipmentIssue {
+  id           String    @id
+  staffId      String
+  companyId    String
+  itemName     String
+  serialNumber String?
+  issueDate    DateTime  @default(now())
+  returnDate   DateTime?
+  notes        String?
+  Company      Company   @relation(fields: [companyId], references: [id])
+  Staff        Staff     @relation(fields: [staffId], references: [id])
+}
+
+model StaffSalarySheet {
+  id         String       @id
+  staffId    String
+  companyId  String
+  month      Int
+  year       Int
+  baseSalary Decimal      @db.Decimal(20, 4)
+  allowances Decimal      @db.Decimal(20, 4)
+  deductions Decimal      @db.Decimal(20, 4)
+  netPay     Decimal      @db.Decimal(20, 4)
+  status     SalaryStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime
+  Company    Company      @relation(fields: [companyId], references: [id])
+  Staff      Staff        @relation(fields: [staffId], references: [id])
+
+  @@unique([staffId, month, year])
+}
+
+model SubmoduleDefinition {
+  id               String           @id
+  moduleId         String
+  key              String
+  name             String
+  description      String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime
+  FormDefinition   FormDefinition[]
+  ModuleDefinition ModuleDefinition @relation(fields: [moduleId], references: [id])
+}
+
+model SystemGuideSection {
+  id        String   @id
+  title     String
+  content   String
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+model Task {
+  id                           String     @id
+  companyId                    String
+  title                        String
+  description                  String?
+  status                       TaskStatus @default(OPEN)
+  dueDate                      DateTime?
+  createdById                  String
+  assignedToId                 String?
+  createdAt                    DateTime   @default(now())
+  updatedAt                    DateTime
+  User_Task_assignedToIdToUser User?      @relation("Task_assignedToIdToUser", fields: [assignedToId], references: [id])
+  Company                      Company    @relation(fields: [companyId], references: [id])
+  User_Task_createdByIdToUser  User       @relation("Task_createdByIdToUser", fields: [createdById], references: [id])
+}
+
+model Theme {
+  id                 String            @id
+  name               String
+  primaryColor       String            @default("#00bcd4")
+  secondaryColor     String            @default("#00e5ff")
+  backgroundGradient String            @default("linear-gradient(135deg,#002b36,#003f5c)")
+  fontFamily         String            @default("Inter, system-ui, sans-serif")
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime
+  CompanySettings    CompanySettings[]
+}
+
+model User {
+  id                           String                 @id
+  companyId                    String?
+  email                        String                 @unique
+  passwordHash                 String
+  fullName                     String
+  address                      String?
+  profileImage                 String?
+  idImage                      String?
+  idNumber                     String?
+  phone                        String?
+  emergencyContact             String?
+  isApproved                   Boolean                @default(false)
+  isCreator                    Boolean                @default(false)
+  pinHash                      String?
+  lastLoginAt                  DateTime?
+  createdAt                    DateTime               @default(now())
+  updatedAt                    DateTime
+  deletedAt                    DateTime?
+  AuditLog                     AuditLog[]
+  BackupJob                    BackupJob[]
+  Expense                      Expense[]
+  ExpenseStatusHistory         ExpenseStatusHistory[]
+  FileUpload                   FileUpload[]
+  FormSubmission               FormSubmission[]
+  JournalEntry                 JournalEntry[]
+  Notification                 Notification[]
+  Staff                        Staff?
+  Task_Task_assignedToIdToUser Task[]                 @relation("Task_assignedToIdToUser")
+  Task_Task_createdByIdToUser  Task[]                 @relation("Task_createdByIdToUser")
+  Company                      Company?               @relation(fields: [companyId], references: [id])
+  UserRole                     UserRole[]
+}
+
+model UserRole {
+  id     String @id
+  userId String
+  roleId String
+  Role   Role   @relation(fields: [roleId], references: [id])
+  User   User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, roleId])
+}
+
+model Vendor {
+  id            String          @id
+  companyId     String
+  name          String
+  code          String
+  email         String?
+  phone         String?
+  contactName   String?
+  address       String?
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  PurchaseOrder PurchaseOrder[]
+  Company       Company         @relation(fields: [companyId], references: [id])
+  VendorInvoice VendorInvoice[]
+  VendorPayment VendorPayment[]
+
+  @@unique([companyId, code])
+}
+
+model VendorInvoice {
+  id                String              @id
+  companyId         String
+  vendorId          String
+  purchaseOrderId   String?
+  invoiceNumber     String
+  invoiceDate       DateTime
+  dueDate           DateTime?
+  totalAmount       Decimal             @db.Decimal(20, 4)
+  currencyCode      String?
+  fxRate            Decimal?            @db.Decimal(20, 8)
+  foreignAmount     Decimal?            @db.Decimal(20, 4)
+  notes             String?
+  createdAt         DateTime            @default(now())
+  Company           Company             @relation(fields: [companyId], references: [id])
+  PurchaseOrder     PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id])
+  Vendor            Vendor              @relation(fields: [vendorId], references: [id])
+  VendorInvoiceItem VendorInvoiceItem[]
+  VendorPayment     VendorPayment[]
+}
+
+model VendorInvoiceItem {
+  id            String        @id
+  invoiceId     String
+  description   String
+  quantity      Int
+  unitPrice     Decimal       @db.Decimal(20, 4)
+  lineTotal     Decimal       @db.Decimal(20, 4)
+  VendorInvoice VendorInvoice @relation(fields: [invoiceId], references: [id])
+}
+
+model VendorPayment {
+  id            String         @id
+  companyId     String
+  vendorId      String
+  invoiceId     String?
+  amount        Decimal        @db.Decimal(20, 4)
+  paidDate      DateTime
+  method        String?
+  reference     String?
+  currencyCode  String?
+  fxRate        Decimal?       @db.Decimal(20, 8)
+  foreignAmount Decimal?       @db.Decimal(20, 4)
+  Company       Company        @relation(fields: [companyId], references: [id])
+  VendorInvoice VendorInvoice? @relation(fields: [invoiceId], references: [id])
+  Vendor        Vendor         @relation(fields: [vendorId], references: [id])
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  LEAVE
 }
 
 enum BillStatus {
@@ -23,6 +894,20 @@ enum BillStatus {
   SENT
   PARTIALLY_PAID
   PAID
+  REJECTED
+}
+
+enum CurrencyCode {
+  SAR
+  USD
+  EUR
+  BDT
+}
+
+enum ExpenseStatus {
+  PENDING
+  REVIEW
+  APPROVED
   REJECTED
 }
 
@@ -34,39 +919,11 @@ enum InvestmentCategory {
   INVESTOR_FUND
 }
 
-enum ProjectStatus {
-  PLANNED
-  ACTIVE
-  ON_HOLD
-  COMPLETED
-  CANCELLED
-}
-
-enum AttendanceStatus {
-  PRESENT
-  ABSENT
-  LATE
-  LEAVE
-}
-
-enum SalaryStatus {
-  PENDING
-  PAID
+enum InvoiceStatus {
+  DRAFT
+  SENT
   PARTIALLY_PAID
-}
-
-enum NotificationType {
-  SYSTEM
-  TASK
-  PROJECT
-  FINANCE
-  HR
-}
-
-enum TaskStatus {
-  OPEN
-  IN_PROGRESS
-  COMPLETED
+  PAID
   CANCELLED
 }
 
@@ -74,13 +931,6 @@ enum LanguageCode {
   en
   bn
   ar
-}
-
-enum CurrencyCode {
-  SAR
-  USD
-  EUR
-  BDT
 }
 
 enum ModuleKey {
@@ -97,692 +947,37 @@ enum ModuleKey {
   CONTACT
 }
 
-//////////////////////
-// CORE ENTITIES    //
-//////////////////////
-
-model User {
-  id                 String              @id @default(cuid())
-  companyId          String?
-  email              String              @unique
-  passwordHash       String
-  fullName           String
-  address            String?
-  profileImage       String?
-  idImage            String?
-  idNumber           String?
-  phone              String?
-  emergencyContact   String?
-  isApproved         Boolean             @default(false)
-  isCreator          Boolean             @default(false)
-  pinHash            String?
-  lastLoginAt        DateTime?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  deletedAt          DateTime?
-
-  company            Company?            @relation(fields: [companyId], references: [id])
-  roles              UserRole[]
-  auditLogs          AuditLog[]
-  notifications      Notification[]
-  tasksAssigned      Task[]              @relation("TaskAssignee")
-  tasksCreated       Task[]              @relation("TaskCreator")
-  staffProfile       Staff?
-  expensesSubmitted  Expense[]            @relation("ExpenseSubmitter")
-  expenseStatusChanges ExpenseStatusHistory[] @relation("ExpenseStatusChangedBy")
-  formSubmissions    FormSubmission[]
-  backupJobs         BackupJob[]
+enum NotificationType {
+  SYSTEM
+  TASK
+  PROJECT
+  FINANCE
+  HR
 }
 
-model Company {
-  id                 String              @id @default(cuid())
-  name               String
-  address            String?
-  logoUrl            String?
-  phone              String?
-  email              String?
-  website            String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  deletedAt          DateTime?
-
-  users              User[]
-  settings           CompanySettings?
-  expenses           Expense[]
-  expenseCategories  ExpenseCategory[]
-  incomeBills        IncomeBill[]
-  investments        Investment[]
-  assets             Asset[]
-  assetCategories    AssetCategory[]
-  liabilities        Liability[]
-  liabilityTypes     LiabilityType[]
-  projects           Project[]
-  staff              Staff[]
-  notifications      Notification[]
-  contactMessages    ContactMessage[]
-  modules            CompanyModule[]
-  auditLogs          AuditLog[]
-  staffAccountLedger StaffAccountLedger[]
-  staffAttendance    StaffAttendance[]
-  staffSalarySheets  StaffSalarySheet[]
-  staffEquipmentIssues StaffEquipmentIssue[]
-  formSubmissions    FormSubmission[]
-  tasks              Task[]
+enum ProjectStatus {
+  PLANNED
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
 }
 
-model CompanySettings {
-  id                 String        @id @default(cuid())
-  companyId          String        @unique
-  themeId            String?
-  language           LanguageCode  @default(en)
-  currency           CurrencyCode  @default(SAR)
-  darkModeDefault    Boolean       @default(true)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-
-  company            Company       @relation(fields: [companyId], references: [id])
-  theme              Theme?        @relation(fields: [themeId], references: [id])
+enum PurchaseOrderStatus {
+  SENT
+  RECEIVED
+  PARTIALLY_RECEIVED
 }
 
-//////////////////////
-// ROLES & PERMS    //
-//////////////////////
-
-model Role {
-  id                 String              @id @default(cuid())
-  name               String
-  description        String?
-  isSystem           Boolean             @default(false) // Creator-defined templates
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-
-  users              UserRole[]
-  permissions        RolePermission[]
+enum SalaryStatus {
+  PENDING
+  PAID
+  PARTIALLY_PAID
 }
 
-model Permission {
-  id                 String              @id @default(cuid())
-  module             ModuleKey
-  action             String              // VIEW, CREATE, EDIT, APPROVE, REJECT, DELETE, EXPORT
-  description        String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-
-  roles              RolePermission[]
-
-  @@unique([module, action])
-}
-
-model UserRole {
-  id                 String              @id @default(cuid())
-  userId             String
-  roleId             String
-
-  user               User                @relation(fields: [userId], references: [id])
-  role               Role                @relation(fields: [roleId], references: [id])
-
-  @@unique([userId, roleId])
-}
-
-model RolePermission {
-  id                 String              @id @default(cuid())
-  roleId             String
-  permissionId       String
-
-  role               Role                @relation(fields: [roleId], references: [id])
-  permission         Permission          @relation(fields: [permissionId], references: [id])
-
-  @@unique([roleId, permissionId])
-}
-
-//////////////////////
-// AUDIT & LOGGING  //
-//////////////////////
-
-model AuditLog {
-  id                 String      @id @default(cuid())
-  userId             String?
-  companyId          String?
-  actionType         String      // LOGIN, CREATE, UPDATE, DELETE, APPROVE, REJECT, etc.
-  module             String
-  entityType         String?
-  entityId           String?
-  metadata           Json?
-  createdAt          DateTime    @default(now())
-
-  user               User?       @relation(fields: [userId], references: [id])
-  company            Company?    @relation(fields: [companyId], references: [id])
-}
-
-//////////////////////
-// EXPENSES MODULE  //
-//////////////////////
-
-model Expense {
-  id                 String                 @id @default(cuid())
-  companyId          String
-  submitterId        String
-  status             ExpenseStatus          @default(PENDING)
-  totalAmount        Decimal                @db.Decimal(18, 2)
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
-  deletedAt          DateTime?
-
-  company            Company                @relation(fields: [companyId], references: [id])
-  submitter          User                   @relation("ExpenseSubmitter", fields: [submitterId], references: [id])
-  items              ExpenseItem[]
-  statusLogs         ExpenseStatusHistory[]
-  projectLinks       ProjectExpenseLink[]   @relation("ExpenseProjectLinks")
-}
-
-model ExpenseItem {
-  id                 String           @id @default(cuid())
-  expenseId          String
-  categoryId         String?
-  description        String
-  amount             Decimal          @db.Decimal(18, 2)
-  receiptUrl         String?
-  createdAt          DateTime         @default(now())
-
-  expense            Expense          @relation(fields: [expenseId], references: [id])
-  category           ExpenseCategory? @relation(fields: [categoryId], references: [id])
-}
-
-model ExpenseCategory {
-  id                 String        @id @default(cuid())
-  companyId          String
-  name               String
-  description        String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-
-  company            Company       @relation(fields: [companyId], references: [id])
-  items              ExpenseItem[]
-}
-
-model ExpenseStatusHistory {
-  id                 String         @id @default(cuid())
-  expenseId          String
-  status             ExpenseStatus
-  comment            String?
-  changedById        String?
-  createdAt          DateTime       @default(now())
-
-  expense            Expense        @relation(fields: [expenseId], references: [id])
-  changedBy          User?          @relation("ExpenseStatusChangedBy", fields: [changedById], references: [id])
-}
-
-//////////////////////
-// INCOME & BILLS   //
-//////////////////////
-
-model IncomeBill {
-  id                 String          @id @default(cuid())
-  companyId          String
-  billNumber         String          @unique
-  clientName         String
-  clientAddress      String?
-  clientContact      String?
-  status             BillStatus      @default(DRAFT)
-  vatEnabled         Boolean         @default(false)
-  vatRate            Decimal?        @db.Decimal(5, 2)
-  discount           Decimal?        @db.Decimal(18, 2)
-  subtotal           Decimal         @db.Decimal(18, 2)
-  totalAmount        Decimal         @db.Decimal(18, 2)
-  amountInWords      String?
-  remarks            String?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  deletedAt          DateTime?
-
-  company            Company         @relation(fields: [companyId], references: [id])
-  items              IncomeBillItem[]
-  payments           IncomePayment[]
-  dues               IncomeDue[]
-}
-
-model IncomeBillItem {
-  id                 String          @id @default(cuid())
-  billId             String
-  serialNumber       Int
-  description        String
-  quantity           Int
-  rate               Decimal         @db.Decimal(18, 2)
-  amount             Decimal         @db.Decimal(18, 2)
-  remarks            String?
-
-  bill               IncomeBill      @relation(fields: [billId], references: [id])
-}
-
-model IncomePayment {
-  id                 String          @id @default(cuid())
-  billId             String
-  amount             Decimal         @db.Decimal(18, 2)
-  paymentDate        DateTime        @default(now())
-  method             String?
-  reference          String?
-
-  bill               IncomeBill      @relation(fields: [billId], references: [id])
-}
-
-model IncomeDue {
-  id                 String          @id @default(cuid())
-  billId             String
-  dueAmount          Decimal         @db.Decimal(18, 2)
-  reason             String?
-  createdAt          DateTime        @default(now())
-
-  bill               IncomeBill      @relation(fields: [billId], references: [id])
-}
-
-//////////////////////
-// INVESTMENTS      //
-//////////////////////
-
-model Investment {
-  id                 String              @id @default(cuid())
-  companyId          String
-  category           InvestmentCategory
-  amount             Decimal             @db.Decimal(18, 2)
-  description        String?
-  investorName       String?
-  projectId          String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-
-  company            Company             @relation(fields: [companyId], references: [id])
-  project            Project?            @relation("ProjectInvestments", fields: [projectId], references: [id])
-}
-
-//////////////////////
-// ASSETS & LIABS   //
-//////////////////////
-
-model AssetCategory {
-  id                 String        @id @default(cuid())
-  companyId          String
-  name               String
-  description        String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-
-  company            Company       @relation(fields: [companyId], references: [id])
-  assets             Asset[]
-}
-
-model Asset {
-  id                 String           @id @default(cuid())
-  companyId          String
-  categoryId         String?
-  name               String
-  description        String?
-  value              Decimal          @db.Decimal(18, 2)
-  isOperatingCash    Boolean          @default(false)
-  acquiredAt         DateTime?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  deletedAt          DateTime?
-
-  company            Company          @relation(fields: [companyId], references: [id])
-  category           AssetCategory?   @relation(fields: [categoryId], references: [id])
-}
-
-model LiabilityType {
-  id                 String        @id @default(cuid())
-  companyId          String
-  name               String
-  description        String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-
-  company            Company       @relation(fields: [companyId], references: [id])
-  liabilities        Liability[]
-}
-
-model Liability {
-  id                 String          @id @default(cuid())
-  companyId          String
-  typeId             String?
-  lenderName         String?
-  description        String?
-  amount             Decimal         @db.Decimal(18, 2)
-  dueDate            DateTime?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  deletedAt          DateTime?
-
-  company            Company         @relation(fields: [companyId], references: [id])
-  type               LiabilityType?  @relation(fields: [typeId], references: [id])
-}
-
-//////////////////////
-// PROJECTS MODULE  //
-//////////////////////
-
-model Project {
-  id                 String              @id @default(cuid())
-  companyId          String
-  projectNumber      String
-  name               String
-  ownerName          String?
-  value              Decimal?            @db.Decimal(18, 2)
-  workType           String?
-  reference          String?
-  contactInfo        String?
-  status             ProjectStatus       @default(PLANNED)
-  startDate          DateTime?
-  endDate            DateTime?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  deletedAt          DateTime?
-
-  company            Company             @relation(fields: [companyId], references: [id])
-  budgets            ProjectBudget[]
-  expenseLinks       ProjectExpenseLink[]
-  workers            ProjectWorker[]
-  progressLogs       ProjectProgressLog[]
-  investments        Investment[]        @relation("ProjectInvestments")
-}
-
-model ProjectBudget {
-  id                 String          @id @default(cuid())
-  projectId          String
-  category           String
-  amount             Decimal         @db.Decimal(18, 2)
-  createdAt          DateTime        @default(now())
-
-  project            Project         @relation(fields: [projectId], references: [id])
-}
-
-model ProjectExpenseLink {
-  id                 String          @id @default(cuid())
-  projectId          String
-  expenseId          String
-
-  project            Project         @relation(fields: [projectId], references: [id])
-  expense            Expense         @relation("ExpenseProjectLinks", fields: [expenseId], references: [id])
-
-  @@unique([projectId, expenseId])
-}
-
-model ProjectWorker {
-  id                 String          @id @default(cuid())
-  projectId          String
-  staffId            String
-  role               String?
-  createdAt          DateTime        @default(now())
-
-  project            Project         @relation(fields: [projectId], references: [id])
-  staff              Staff           @relation("StaffProjectAssignments", fields: [staffId], references: [id])
-
-  @@unique([projectId, staffId])
-}
-
-model ProjectProgressLog {
-  id                 String          @id @default(cuid())
-  projectId          String
-  progressPercent    Int
-  notes              String?
-  createdAt          DateTime        @default(now())
-
-  project            Project         @relation(fields: [projectId], references: [id])
-}
-
-//////////////////////
-// HR & ADMIN       //
-//////////////////////
-
-model Staff {
-  id                 String              @id @default(cuid())
-  companyId          String
-  userId             String? @unique
-  fullName           String
-  position           String?
-  department         String?
-  phone              String?
-  address            String?
-  idNumber           String?
-  profileImage       String?
-  idImage            String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  deletedAt          DateTime?
-
-  company            Company             @relation(fields: [companyId], references: [id])
-  user               User?               @relation(fields: [userId], references: [id])
-  accountLedger      StaffAccountLedger[]
-  attendanceRecords  StaffAttendance[]
-  salarySheets       StaffSalarySheet[]
-  equipmentIssues    StaffEquipmentIssue[]
-  projectAssignments ProjectWorker[]     @relation("StaffProjectAssignments")
-}
-
-model StaffAccountLedger {
-  id                 String          @id @default(cuid())
-  staffId            String
-  companyId          String
-  type               String          // DEBIT (advance/petty cash), CREDIT (expense approval)
-  amount             Decimal         @db.Decimal(18, 2)
-  reference          String?
-  createdAt          DateTime        @default(now())
-
-  staff              Staff           @relation(fields: [staffId], references: [id])
-  company            Company         @relation(fields: [companyId], references: [id])
-}
-
-model StaffAttendance {
-  id                 String            @id @default(cuid())
-  staffId            String
-  companyId          String
-  date               DateTime
-  status             AttendanceStatus
-  checkInTime        DateTime?
-  checkOutTime       DateTime?
-  notes              String?
-  createdAt          DateTime          @default(now())
-
-  staff              Staff             @relation(fields: [staffId], references: [id])
-  company            Company           @relation(fields: [companyId], references: [id])
-
-  @@unique([staffId, date])
-}
-
-model StaffSalarySheet {
-  id                 String          @id @default(cuid())
-  staffId            String
-  companyId          String
-  month              Int
-  year               Int
-  baseSalary         Decimal         @db.Decimal(18, 2)
-  allowances         Decimal         @db.Decimal(18, 2)
-  deductions         Decimal         @db.Decimal(18, 2)
-  netPay             Decimal         @db.Decimal(18, 2)
-  status             SalaryStatus    @default(PENDING)
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-
-  staff              Staff           @relation(fields: [staffId], references: [id])
-  company            Company         @relation(fields: [companyId], references: [id])
-
-  @@unique([staffId, month, year])
-}
-
-model StaffEquipmentIssue {
-  id                 String          @id @default(cuid())
-  staffId            String
-  companyId          String
-  itemName           String
-  serialNumber       String?
-  issueDate          DateTime        @default(now())
-  returnDate         DateTime?
-  notes              String?
-
-  staff              Staff           @relation(fields: [staffId], references: [id])
-  company            Company         @relation(fields: [companyId], references: [id])
-}
-
-//////////////////////
-// CONTROL PANEL    //
-//////////////////////
-
-model ModuleDefinition {
-  id                 String        @id @default(cuid())
-  key                ModuleKey     @unique
-  name               String
-  description        String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-
-  submodules         SubmoduleDefinition[]
-  companyModules     CompanyModule[]
-}
-
-model SubmoduleDefinition {
-  id                 String            @id @default(cuid())
-  moduleId           String
-  key                String
-  name               String
-  description        String?
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-
-  module             ModuleDefinition  @relation(fields: [moduleId], references: [id])
-  forms              FormDefinition[]
-}
-
-model CompanyModule {
-  id                 String            @id @default(cuid())
-  companyId          String
-  moduleId           String
-  isEnabled          Boolean           @default(true)
-  isLocked           Boolean           @default(false)
-
-  company            Company           @relation(fields: [companyId], references: [id])
-  module             ModuleDefinition  @relation(fields: [moduleId], references: [id])
-
-  @@unique([companyId, moduleId])
-}
-
-model FormDefinition {
-  id                 String                @id @default(cuid())
-  submoduleId        String
-  name               String
-  description        String?
-  schemaJson         Json                  // dynamic form structure
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
-
-  submodule          SubmoduleDefinition   @relation(fields: [submoduleId], references: [id])
-  submissions        FormSubmission[]
-}
-
-model FormSubmission {
-  id                 String          @id @default(cuid())
-  formId             String
-  companyId          String
-  userId             String
-  data               Json
-  status             String          @default("SUBMITTED")
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-
-  form               FormDefinition  @relation(fields: [formId], references: [id])
-  company            Company         @relation(fields: [companyId], references: [id])
-  user               User            @relation(fields: [userId], references: [id])
-}
-
-//////////////////////
-// SETTINGS & THEME //
-//////////////////////
-
-model Theme {
-  id                 String        @id @default(cuid())
-  name               String
-  primaryColor       String        @default("#00bcd4")
-  secondaryColor     String        @default("#00e5ff")
-  backgroundGradient String        @default("linear-gradient(135deg,#002b36,#003f5c)")
-  fontFamily         String        @default("Inter, system-ui, sans-serif")
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-
-  companySettings    CompanySettings[]
-}
-
-//////////////////////
-// NOTIFICATIONS    //
-//////////////////////
-
-model Notification {
-  id                 String            @id @default(cuid())
-  companyId          String?
-  userId             String?
-  type               NotificationType
-  title              String
-  message            String
-  isRead             Boolean           @default(false)
-  createdAt          DateTime          @default(now())
-
-  company            Company?          @relation(fields: [companyId], references: [id])
-  user               User?             @relation(fields: [userId], references: [id])
-}
-
-//////////////////////
-// TASKS & PLANNING //
-//////////////////////
-
-model Task {
-  id                 String        @id @default(cuid())
-  companyId          String
-  title              String
-  description        String?
-  status             TaskStatus    @default(OPEN)
-  dueDate            DateTime?
-  createdById        String
-  assignedToId       String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-
-  company            Company       @relation(fields: [companyId], references: [id])
-  createdBy          User          @relation("TaskCreator", fields: [createdById], references: [id])
-  assignedTo         User?         @relation("TaskAssignee", fields: [assignedToId], references: [id])
-}
-
-//////////////////////
-// CONTACT & HELP   //
-//////////////////////
-
-model ContactMessage {
-  id                 String        @id @default(cuid())
-  companyId          String?
-  name               String
-  email              String
-  subject            String
-  message            String
-  createdAt          DateTime      @default(now())
-
-  company            Company?      @relation(fields: [companyId], references: [id])
-}
-
-model SystemGuideSection {
-  id                 String        @id @default(cuid())
-  title              String
-  content            String
-  order              Int
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-}
-
-//////////////////////
-// BACKUP & META    //
-//////////////////////
-
-model BackupJob {
-  id                 String        @id @default(cuid())
-  triggeredById      String?
-  status             String        // PENDING, RUNNING, SUCCESS, FAILED
-  location           String?       // path or bucket reference
-  createdAt          DateTime      @default(now())
-  completedAt        DateTime?
-
-  triggeredBy        User?         @relation(fields: [triggeredById], references: [id])
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
